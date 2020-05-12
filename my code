@@ -1,0 +1,164 @@
+#Loadig libraries
+import numpy as np
+import pandas as pd
+import seaborn as sns
+import matplotlib.pyplot as plt
+
+#Loading Data
+df=pd.read_csv('train_bf.csv')
+df2=pd.read_csv('test_bf.csv')
+#Exploratory Data Analysis
+print(df.shape)
+print('------------------------------\n')
+print( df2.shape)
+
+#Understanding the business problem
+'''Questions to be asked by seeing data
+
+#Which gender contributed more in purchase amount ??
+
+#Which products has more sales during blackfriday ??
+
+#Which age group spent more on black friday ??
+
+#Does type of occupation has any effect in purchase amount ??
+
+#Does staying no.of years in current city has an effect in more purchses ??
+
+#Impact of maitial status in purchase amount ??
+
+#Geder & Maritial status together contributes any in sales ??'''
+   
+sns.countplot(df.Gender) 
+sns.countplot(df.Age)                                                          
+sns.countplot(df.Occupation)
+data=df.groupby('Age')['Purchase'].mean()
+data
+data=pd.DataFrame({'Age':data.index,'Avg_purcase':data.values})
+plt.plot('Age','Avg_purcase','r--',data=data)
+sns.countplot(df.Age,hue=df.Gender)
+sns.countplot(df.Stay_In_Current_City_Years)
+data_stay=df.groupby('Stay_In_Current_City_Years')['Purchase'].mean()
+data_stay
+plt.plot(data_stay.index,data_stay.values,'go-')
+#------------HIGH LEVEL ANALYSIS----------------------
+#Cnnverting required variables
+from sklearn.preprocessing import LabelEncoder
+enc=LabelEncoder()
+df['Gender']=enc.fit_transform(df['Gender'])
+df_age_new=pd.get_dummies(df['Age'])
+df.drop('Age',axis=1,inplace=True)
+df=pd.concat([df,df_age_new],axis=1)
+df_City_new=pd.get_dummies(df['City_Category'])
+df.drop('City_Category',axis=1,inplace=True)
+df=pd.concat([df,df_City_new],axis=1)
+df["Stay_In_Current_City_Years"]=df['Stay_In_Current_City_Years'].replace('4+',4)
+df["Stay_In_Current_City_Years"]=pd.to_numeric(df["Stay_In_Current_City_Years"])
+treshold=len(df)*0.35
+df.dropna(thresh=treshold,axis=1,inplace=True)
+cori=df.corr()
+cori
+plt.figure(figsize=(15,8))
+sns.heatmap(cori,cmap='coolwarm',annot=True)
+""""product category_2 is also one of the most important feature
+.So we need to reove this feature. we should eep tis feature 
+otherwise we might loose imortant information.We can impute missig values by mean or median 
+Lets check which strategy is best to opt"""
+from sklearn.impute import SimpleImputer
+imp=SimpleImputer(missing_values=np.nan,strategy='median')
+imp.fit(df.iloc[:,7:8])
+df.iloc[:,7:8]=imp.transform(df.iloc[:,7:8])
+df.drop('Product_ID',axis=1,inplace=True)
+y=df.iloc[:,7:8]
+X=df.drop('Purchase',axis=1)
+X.shape
+y=np.array(y)
+y=y.ravel()
+y.shape
+from sklearn.model_selection import train_test_split
+X_train,X_test,y_train,y_test=train_test_split(X,y,test_size=0.2,random_state=2)
+#----------LINEAR REGRESSION-----------
+from sklearn.linear_model import LinearRegression
+from sklearn.metrics import accuracy_score,r2_score,mean_absolute_error,mean_squared_error
+LR=LinearRegression()
+LR.fit(X_train,y_train)
+y_pred_LR=LR.predict(X_test)
+print(r2_score(y_pred_LR,y_test))
+mse_lr=mean_squared_error(y_pred_LR,y_test)
+rmse_lr=np.sqrt(mse_lr)
+
+#---------DECISION TREES REGRESSOR-------------------
+from sklearn.tree import DecisionTreeRegressor
+DT=DecisionTreeRegressor()
+DT.fit(X_train,y_train)
+y_pred_DT=DT.predict(X_test)
+print(r2_score(y_pred_DT,y_test))
+mse_dt=mean_squared_error(y_pred_DT,y_test)
+rmse_dt=np.rmse=np.sqrt(mse_dt)
+
+#-------------------RANDOM FOREST REGRESSOR------------------
+from sklearn.ensemble import RandomForestRegressor
+RF=RandomForestRegressor()
+RF.fit(X_train,y_train)
+y_pred_RF=RF.predict(X_test)
+print(r2_score(y_pred_RF,y_test))
+mse_rf=mean_squared_error(y_pred_RF,y_test)
+rmse_rf=np.rmse=np.sqrt(mse_rf)
+
+#----------XGBOOST REGRESSOR-------------------
+from xgboost import XGBRegressor
+XGBOOST=XGBRegressor()
+XGBOOST.fit(X_train,y_train)
+y_pred_xgb=XGBOOST.predict(X_test)
+mse_xgb=mean_squared_error(y_pred_xgb,y_test)
+rmse_xgb=np.rmse=np.sqrt(mse_xgb)
+print(r2_score(y_pred_xgb,y_test))
+
+#---------Support vectore regressor----------------
+from sklearn.svm import SVR
+svr=SVR()
+svr.fit(X_train,y_train)
+y_pred_svr=svr.predict(X_test)
+mse_svr=mean_squared_error(y_pred_svr,y_test)
+rmse=np.sqrt(mse_svr)
+
+#-----------------Selecting best model-------------------
+print('RMSE OF LINEAR REGRESSION IS: {}'.format(rmse_lr))
+print('R2_score of the LR model is: {}' .format(r2_score(y_pred_DT,y_test)))
+print('RMSE OF DECISION TREES IS: {}'.format(rmse_dt))
+print('R2_score of the DT model is: {}'.format(r2_score(y_pred_DT,y_test)))
+print('RMSE OF RANDOM FORESTS IS: {}'.format(rmse_rf))
+print('R2_score of the RF model is: {}'.format(r2_score(y_pred_RF,y_test)))
+print('RMSE OF XG BOOST IS: {}'.format(rmse_xgb))
+print('R2_score of the XGB  model is: {}'.format(r2_score(y_pred_xgb,y_test)))
+print('RMSE OF SVR IS: {}'.format(rmse_svr))
+print('R2_score of the SVR  model is: {}'.format(r2_score(y_pred_svr,y_test)))
+
+'''we got low RMSE's for both random forets and Xg boost
+but r2_score is good in Random forests compared to xg boost.so
+we are choosing random forests for predicting reults for test set'''
+
+#-----------working with test set-----------
+
+df2['Gender']=enc.fit_transform(df2['Gender'])
+df2_age_new=pd.get_dummies(df2['Age'])
+df2.drop('Age',axis=1,inplace=True)
+df2=pd.concat([df2,df2_age_new],axis=1)
+df2_City_new=pd.get_dummies(df2['City_Category'])
+df2.drop('City_Category',axis=1,inplace=True)
+df2=pd.concat([df2,df2_City_new],axis=1)
+df2["Stay_In_Current_City_Years"]=df2['Stay_In_Current_City_Years'].replace('4+',4)
+df2["Stay_In_Current_City_Years"]=pd.to_numeric(df2["Stay_In_Current_City_Years"])
+df2.drop('Product_Category_3',axis=1,inplace=True)
+df2.head()
+df2.drop('Product_ID',axis=1,inplace=True)
+df2.head()
+df2['Gender']=enc.fit_transform(df2['Gender'])
+imp.fit(df2.iloc[:,6:7])
+df2.iloc[:,6:7]=imp.transform(df2.iloc[:,6:7])
+
+#---------------Predicting Results---------------
+y_pred_test_set=RF.predict(df2)
+
+
+
